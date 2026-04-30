@@ -6,18 +6,20 @@ import type { BunRequest } from "bun";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 import { MAX_UPLOAD_SIZE } from "../constants";
 import { join } from "path";
+import { randomBytes } from "crypto";
 
 type Thumbnail = {
   data: ArrayBuffer;
   mediaType: string;
 };
 
-async function saveVideoFile(arrBuffer: ArrayBuffer, videoID: string, mediaType: string) {
+async function saveVideoFile(arrBuffer: ArrayBuffer, mediaType: string) {
+  const fileName = randomBytes(32).toString("base64url");
   const extension = mediaType.split("/")[1];
-  const filePath = join(cfg.assetsRoot, `${videoID}.${extension}`);
+  const filePath = join(cfg.assetsRoot, `${fileName}.${extension}`);
   await Bun.write(filePath, arrBuffer);
 
-  return filePath;
+  return `${fileName}.${extension}`;
 }
 
 export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
@@ -44,13 +46,13 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
     throw new BadRequestError("Please choose jpeg and png files only")
 
   const arrBuffer = await file.arrayBuffer();
-  saveVideoFile(arrBuffer, videoId, mediaType)
+  const filePath = await saveVideoFile(arrBuffer, mediaType)
 
   const videoMetadata = getVideo(cfg.db, videoId);
   if (userID !== videoMetadata?.userID)
     throw new UserForbiddenError('Forbidden action')
 
-  const thumbnailURL = `http://localhost:8091/assets/${videoId}.${mediaType.split("/")[1]}`
+  const thumbnailURL = `http://localhost:8091/assets/${filePath}`
   updateVideo(cfg.db, { ...videoMetadata, thumbnailURL })
 
   return respondWithJSON(200, videoMetadata);
