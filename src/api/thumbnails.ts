@@ -1,40 +1,23 @@
 import { getBearerToken, validateJWT } from "../auth";
 import { respondWithJSON } from "./json";
 import { getVideo, updateVideo } from "../db/videos";
-import type { ApiConfig } from "../config";
+import { cfg, type ApiConfig } from "../config";
 import type { BunRequest } from "bun";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 import { MAX_UPLOAD_SIZE } from "../constants";
+import { join } from "path";
 
 type Thumbnail = {
   data: ArrayBuffer;
   mediaType: string;
 };
 
-const videoThumbnails: Map<string, Thumbnail> = new Map();
+async function saveVideoFile(arrBuffer: ArrayBuffer, videoID: string, mediaType: string) {
+  const extension = mediaType.split("/")[1];
+  const filePath = join(cfg.assetsRoot, `${videoID}.${extension}`);
+  await Bun.write(filePath, arrBuffer);
 
-export async function handlerGetThumbnail(cfg: ApiConfig, req: BunRequest) {
-  const { videoId } = req.params as { videoId?: string };
-  if (!videoId) {
-    throw new BadRequestError("Invalid video ID");
-  }
-
-  const video = getVideo(cfg.db, videoId);
-  if (!video) {
-    throw new NotFoundError("Couldn't find video");
-  }
-
-  const thumbnail = videoThumbnails.get(videoId);
-  if (!thumbnail) {
-    throw new NotFoundError("Thumbnail not found");
-  }
-
-  return new Response(thumbnail.data, {
-    headers: {
-      "Content-Type": thumbnail.mediaType,
-      "Cache-Control": "no-store",
-    },
-  });
+  return filePath;
 }
 
 export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
@@ -57,13 +40,17 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
     throw new BadRequestError("File size exceeds max-upload limit");
   }
   const mediaType = file.type;
-  const buffer = await file.arrayBuffer();
+  if (mediaType !== "image/jpeg" && mediaType !== "image/png")
+    throw new BadRequestError("Please choose jpeg and png files only")
+
+  const arrBuffer = await file.arrayBuffer();
+  saveVideoFile(arrBuffer, videoId, mediaType)
+
   const videoMetadata = getVideo(cfg.db, videoId);
   if (userID !== videoMetadata?.userID)
     throw new UserForbiddenError('Forbidden action')
 
-  videoThumbnails.set(videoId, { data: buffer, mediaType })
-  const thumbnailURL = `http://localhost:8091/api/thumbnails/${videoId}`
+  const thumbnailURL = `http://localhost:8091/assets/${videoId}.${mediaType.split("/")[1]}`
   updateVideo(cfg.db, { ...videoMetadata, thumbnailURL })
 
   return respondWithJSON(200, videoMetadata);
