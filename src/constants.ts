@@ -1,1 +1,1 @@
-export const MAX_UPLOAD_SIZE = 10 << 20
+export const MAX_UPLOAD_SIZE = 1 << 30 //1 * 2^30 bytes(1 GB=2^30 bytes, 1MB=2^20 bytes)

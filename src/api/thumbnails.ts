@@ -13,7 +13,7 @@ type Thumbnail = {
   mediaType: string;
 };
 
-async function saveVideoFile(arrBuffer: ArrayBuffer, mediaType: string) {
+export async function saveVideoFile(arrBuffer: ArrayBuffer, mediaType: string) {
   const fileName = randomBytes(32).toString("base64url");
   const extension = mediaType.split("/")[1];
   const filePath = join(cfg.assetsRoot, `${fileName}.${extension}`);
