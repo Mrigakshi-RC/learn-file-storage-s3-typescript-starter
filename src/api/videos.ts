@@ -8,7 +8,7 @@ import { getVideo, updateVideo } from "../db/videos";
 import { MAX_UPLOAD_SIZE } from "../constants";
 import { saveVideoFile } from "./thumbnails";
 import { join } from "path";
-import { getVideoAspectRatio } from "../utils";
+import { dbVideoToSignedVideo, getVideoAspectRatio, processVideoForFastStart } from "../utils";
 
 export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   const { videoId } = req.params as { videoId?: string };
@@ -36,14 +36,19 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
 
   const arrBuffer = await file.arrayBuffer();
   let filePath = await saveVideoFile(arrBuffer, mediaType)
-  const tempFilePath=join(cfg.assetsRoot, `${filePath}`)
-  const aspectRatio=await getVideoAspectRatio(tempFilePath)
-  filePath=`${aspectRatio}/${filePath}`
+  const tempFilePath = join(cfg.assetsRoot, `${filePath}`)
+  const processedFilePath = await processVideoForFastStart(tempFilePath)
+  const aspectRatio = await getVideoAspectRatio(processedFilePath)
+  filePath = `${aspectRatio}/${filePath}`
 
-  const fileContents = Bun.file(tempFilePath);
+  const fileContents = Bun.file(processedFilePath);
   await cfg.s3Client.write(filePath, fileContents, { type: fileContents.type })
-  
-  updateVideo(cfg.db,{...videoMetadata, videoURL:`https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${filePath}`})
 
-  return respondWithJSON(200, null);
+  updateVideo(cfg.db, { ...videoMetadata, videoURL: filePath })
+  const signedVideo = dbVideoToSignedVideo(cfg, { 
+    ...videoMetadata, 
+    videoURL: filePath 
+  });
+
+  return respondWithJSON(200, signedVideo);
 }
