@@ -28,18 +28,18 @@ export async function processVideoForFastStart(inputFilePath: string) {
     return outputFilePath;
 }
 
-function generatePresignedURL(cfg: ApiConfig, key: string, expireTime: number) {
-    const presignedUrl = cfg.s3Client.presign(key, { expiresIn: expireTime });
-    return presignedUrl;
-}
+// function generatePresignedURL(cfg: ApiConfig, key: string, expireTime: number) {
+//     const presignedUrl = cfg.s3Client.presign(key, { expiresIn: expireTime });
+//     return presignedUrl;
+// }
 
-export function dbVideoToSignedVideo(cfg: ApiConfig, video: Video) {
-    if (!video.videoURL) return video;
-    const key = video.videoURL;
-    const signedUrl = generatePresignedURL(cfg, key, 3600);
+// export function dbVideoToSignedVideo(cfg: ApiConfig, video: Video) {
+//     if (!video.videoURL) return video;
+//     const key = video.videoURL;
+//     const signedUrl = generatePresignedURL(cfg, key, 3600);
 
-    return {
-        ...video,
-        videoURL: signedUrl,
-    };
-}
+//     return {
+//         ...video,
+//         videoURL: signedUrl,
+//     };
+// }

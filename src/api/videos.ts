@@ -8,7 +8,9 @@ import { getVideo, updateVideo } from "../db/videos";
 import { MAX_UPLOAD_SIZE } from "../constants";
 import { saveVideoFile } from "./thumbnails";
 import { join } from "path";
-import { dbVideoToSignedVideo, getVideoAspectRatio, processVideoForFastStart } from "../utils";
+import { 
+  // dbVideoToSignedVideo, 
+  getVideoAspectRatio, processVideoForFastStart } from "../utils";
 
 export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   const { videoId } = req.params as { videoId?: string };
@@ -42,13 +44,14 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   filePath = `${aspectRatio}/${filePath}`
 
   const fileContents = Bun.file(processedFilePath);
-  await cfg.s3Client.write(filePath, fileContents, { type: fileContents.type })
+  await cfg.s3Client.write(filePath, fileContents, { type: mediaType })
 
-  updateVideo(cfg.db, { ...videoMetadata, videoURL: filePath })
-  const signedVideo = dbVideoToSignedVideo(cfg, { 
-    ...videoMetadata, 
-    videoURL: filePath 
-  });
+  const cloudfrontUrl=`https://${cfg.s3CfDistribution}/${filePath}`
+  updateVideo(cfg.db, { ...videoMetadata, videoURL: cloudfrontUrl })
+  // const signedVideo = dbVideoToSignedVideo(cfg, { 
+  //   ...videoMetadata, 
+  //   videoURL: filePath 
+  // });
 
-  return respondWithJSON(200, signedVideo);
+  return respondWithJSON(200, videoMetadata);
 }
